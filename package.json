@@ -1,0 +1,21 @@
+{
+  "name": "tos-telegram",
+  "version": "1.0.0",
+  "description": "",
+  "main": "bot.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mroger25/ToS-Telegram.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mroger25/ToS-Telegram/issues"
+  },
+  "homepage": "https://github.com/mroger25/ToS-Telegram#readme",
+  "dependencies": {
+    "dotenv": "^17.2.2",
+    "lodash": "^4.17.21",
+    "node-telegram-bot-api": "^0.61.0"
+  }
+}
