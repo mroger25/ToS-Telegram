@@ -91,6 +91,51 @@ bot.onText(/\/habilidade (.+)/, (msg, match) => {
   game.registrarAcaoNoturna(atorId, alvoNome);
 });
 
+bot.onText(/\/jail (.+)/, (msg, match) => {
+  const atorId = msg.from.id;
+  const alvoNome = match[1];
+
+  const groupId = playerGames.get(atorId);
+  if (!groupId || !games.has(groupId)) {
+    bot.sendMessage(atorId, "Você não está em um jogo ativo.");
+    return;
+  }
+
+  const game = games.get(groupId);
+  if (game.fase !== "discussao") {
+    bot.sendMessage(atorId, "Você só pode prender alguém durante o dia.");
+    return;
+  }
+
+  game.registrarPrisao(atorId, alvoNome);
+});
+
+bot.onText(/\/execute/, (msg) => {
+  const atorId = msg.from.id;
+
+  if (msg.chat.type !== "private") return; // Comando apenas privado
+
+  const groupId = playerGames.get(atorId);
+  if (!groupId || !games.has(groupId)) return;
+
+  const game = games.get(groupId);
+  game.registrarExecucao(atorId);
+});
+
+bot.on("message", (msg) => {
+  if (msg.text && msg.text.startsWith("/")) return;
+
+  const remetenteId = msg.from.id;
+  // O chat da prisão só funciona em privado
+  if (msg.chat.type === "private" && playerGames.has(remetenteId)) {
+    const groupId = playerGames.get(remetenteId);
+    const game = games.get(groupId);
+    if (game) {
+      game.encaminharMensagemPrisao(remetenteId, msg.text);
+    }
+  }
+});
+
 bot.on("callback_query", (callbackQuery) => {
   const msg = callbackQuery.message;
   const data = callbackQuery.data;

@@ -79,6 +79,9 @@ class Game {
     this.votos = new Map();
     this.jogadoresEmJulgamento = null;
     this.votosJulgamento = new Map();
+    this.prisioneiro = null;
+    this.jailorExecutions = 3;
+    this.jailorDecisao = null;
   }
 
   addObserver(observer) {
@@ -349,6 +352,28 @@ class Game {
     let bloqueios = new Set();
     let frames = new Set();
 
+    if (this.prisioneiro) {
+      bloqueios.add(this.prisioneiro.jogador.id);
+    }
+
+    if (this.prisioneiro && this.jailorDecisao === "executar") {
+      this.jailorExecutions--;
+      mortes.push(this.prisioneiro.jogador.nomeFicticio);
+
+      if (this.prisioneiro.papel.alignment.startsWith("Town")) {
+        this.jailorExecutions = 0;
+        const jailor = this.jogadores.find((j) => j.papel.nome === "Jailor");
+        if (jailor) {
+          resultadosPrivados.push({
+            jogadorId: jailor.jogador.id,
+            mensagem:
+              "Você executou um membro da cidade e " +
+              "perdeu suas execuções restantes.",
+          });
+        }
+      }
+    }
+
     const acoesOrdenadas = Array.from(this.acoesNoturnas.values()).sort(
       (a, b) => (a.ator.papel.priority || 99) - (b.ator.papel.priority || 99)
     );
@@ -411,6 +436,8 @@ class Game {
     });
 
     this.jogadoresVivos = this.jogadores.filter((j) => j.status === "vivo");
+    this.prisioneiro = null;
+    this.jailorDecisao = null;
 
     return { mortes: mortesUnicas, resultadosPrivados };
   }
@@ -502,6 +529,58 @@ class Game {
       this.notifyObservers("voto_registrado", {
         votador: votador.jogador.nomeFicticio,
         alvo: alvo.jogador.nomeFicticio,
+      });
+    }
+  }
+
+  registrarPrisao(jailorId, alvoNomeFicticio) {
+    if (this.fase !== "discussao") return;
+    const jailor = this.jogadoresVivos.find(
+      (j) => j.jogador.id === jailorId && j.papel.nome === "Jailor"
+    );
+    const alvo = this.jogadoresVivos.find(
+      (j) => j.jogador.nomeFicticio === alvoNomeFicticio
+    );
+    if (jailor && alvo) {
+      this.prisioneiro = alvo;
+      this.notifyObservers("prisao_sucesso", {
+        jailor: jailor,
+        prisioneiro: this.prisioneiro,
+      });
+    } else {
+      this.notifyObservers("prisao_falhou", { jogadorId: jailorId });
+    }
+  }
+
+  registrarExecucao(jailorId) {
+    if (this.fase !== "noite" || !this.prisioneiro) return;
+
+    const jailor = this.jogadores.find(
+      (j) => j.jogador.id === jailorId && j.papel.nome === "Jailor"
+    );
+    // Verifica se o Jailor está vivo e se tem execuções restantes
+    if (jailor && jailor.status === "vivo" && this.jailorExecutions > 0) {
+      this.jailorDecisao = "executar";
+      this.notifyObservers("execucao_registrada", { jailorId: jailorId });
+    }
+  }
+
+  encaminharMensagemPrisao(remetenteId, texto) {
+    if (!this.prisioneiro) return;
+
+    const jailor = this.jogadores.find((j) => j.papel.nome === "Jailor");
+    const eJailor = remetenteId === jailor.jogador.id;
+    const ePrisioneiro = remetenteId === this.prisioneiro.jogador.id;
+
+    if (this.fase === "noite" && (eJailor || ePrisioneiro)) {
+      const destinatarioId = eJailor
+        ? this.prisioneiro.jogador.id
+        : jailor.jogador.id;
+      const nomeRemetente = eJailor ? "Jailor" : "Prisioneiro";
+      this.notifyObservers("mensagem_prisao", {
+        destinatarioId,
+        nomeRemetente,
+        texto,
       });
     }
   }

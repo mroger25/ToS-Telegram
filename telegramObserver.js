@@ -310,6 +310,55 @@ class TelegramBotObserver {
           { parse_mode: "Markdown" }
         );
         break;
+
+      case "prisao_sucesso":
+        // Mensagem para o grupo
+        // this.bot.sendMessage(
+        //   this.chatId,
+        //   "O Jailor decidiu prender alguém esta noite."
+        // );
+
+        // Mensagem para o Jailor
+        this.bot.sendMessage(
+          dados.jailor.jogador.id,
+          `Você prendeu *${dados.prisioneiro.jogador.nomeFicticio}*.\n` +
+            `Vocês podem conversar anonimamente durante a noite.\n` +
+            `Use /execute se decidir matá-lo(a).\n` +
+            "Esta ação não pode ser desfeita.",
+          { parse_mode: "Markdown" }
+        );
+
+        // Mensagem para o Prisioneiro
+        this.bot.sendMessage(
+          dados.prisioneiro.jogador.id,
+          `Você foi preso(a) pelo Jailor!\n` +
+            `Vocês podem conversar anonimamente.\n` +
+            `Você não poderá usar sua habilidade esta noite.`,
+          { parse_mode: "Markdown" }
+        );
+        break;
+
+      case "prisao_falhou":
+        this.bot.sendMessage(
+          dados.jogadorId,
+          "Ação falhou. Ou você não é o Jailor, ou o alvo não foi encontrado."
+        );
+        break;
+
+      case "execucao_registrada":
+        this.bot.sendMessage(
+          dados.jailorId,
+          "Sua decisão de executar o prisioneiro foi registrada."
+        );
+        break;
+
+      case "mensagem_prisao":
+        this.bot.sendMessage(
+          dados.destinatarioId,
+          `*${dados.nomeRemetente}:* ${dados.texto}`,
+          { parse_mode: "Markdown" }
+        );
+        break;
     }
   }
 }
