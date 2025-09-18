@@ -4,8 +4,8 @@ class TelegramBotObserver {
     this.chatId = chatId;
     this.messageIdListaJogadores = null;
     this.lobbyMessageIds = [];
-    this.votacaoMessageId = [];
-    this.julgamentoMessageId = [];
+    this.votacaoMessageId = null;
+    this.julgamentoMessageId = null;
   }
 
   update(evento, dados, jogo) {
@@ -121,14 +121,6 @@ class TelegramBotObserver {
           this.chatId,
           "Os papéis foram distribuídos! O jogo começa agora. Que se inicie o primeiro dia!"
         );
-        break;
-
-      case "falha_ao_iniciar":
-        this.bot.sendMessage(
-          this.chatId,
-          `A sala ${jogo.nome} foi excluída por não ter atingido o número mínimo de jogadores.`
-        );
-        // Aqui também viria a lógica para apagar as mensagens do lobby
         break;
 
       case "dia_iniciou":
@@ -294,9 +286,7 @@ class TelegramBotObserver {
 
         // Enviar mensagens privadas para papéis com ações
         dados.jogadoresVivos.forEach((jogadorInfo) => {
-          const papel = jogadorInfo.papel.nome;
-          if (["Mafioso", "Doctor", "Sheriff"].includes(papel)) {
-            // Exemplo de papéis com ação
+          if (jogadorInfo.papel.temAcaoNoturna) {
             this.bot.sendMessage(
               jogadorInfo.jogador.id,
               `É noite. Use /habilidade [nome] para usar sua habilidade.`

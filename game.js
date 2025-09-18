@@ -489,7 +489,7 @@ class Game {
       (j) => j.jogador.nomeFicticio === alvoNomeFicticio
     );
 
-    if (votador && alvo && votador.jogador.id == alvo.jogador.id) {
+    if (votador && alvo && votador.jogador.id === alvo.jogador.id) {
       this.notifyObservers("erro_votacao", {
         jogadorId: votadorId,
         motivo: "Você não pode votar em si mesmo.",

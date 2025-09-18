@@ -7,6 +7,7 @@ const PAPEIS_DETALHES = {
     defense: "None",
     priority: 4,
     goal: "Lynch every criminal and evildoer.",
+    temAcaoNoturna: true,
     checkSuspicious: (targetRole) => {
       // Godfather aparece inocente
       if (["Godfather", "Executioner"].includes(targetRole.nome))
@@ -20,11 +21,13 @@ const PAPEIS_DETALHES = {
     alignment: "Town Investigative",
     priority: 4,
     goal: "Lynch every criminal and evildoer.",
+    temAcaoNoturna: true,
   },
   Investigator: {
     alignment: "Town Investigative",
     priority: 4,
     goal: "Lynch every criminal and evildoer.",
+    temAcaoNoturna: true,
     getResult: (targetRole) => {
       const results = {
         Sheriff: "Sheriff, Executioner, or Werewolf.",
@@ -63,16 +66,19 @@ const PAPEIS_DETALHES = {
     priority: 1, // Prioridade para prender
     executionPriority: 5, // Prioridade para executar
     goal: "Lynch every criminal and evildoer.",
+    temAcaoNoturna: true,
   },
   Doctor: {
     alignment: "Town Protective",
     priority: 3,
     goal: "Lynch every criminal and evildoer.",
+    temAcaoNoturna: true,
   },
   "Tavern Keeper": {
     alignment: "Town Support",
     priority: 2,
     goal: "Lynch every criminal and evildoer.",
+    temAcaoNoturna: true,
   },
   Medium: {
     alignment: "Town Support",
@@ -83,11 +89,13 @@ const PAPEIS_DETALHES = {
     alignment: "Town Killing",
     priority: 5,
     goal: "Lynch every criminal and evildoer.",
+    temAcaoNoturna: true,
   },
   Veteran: {
     alignment: "Town Killing",
     priority: 1, // Prioridade alta para ficar em alerta
     goal: "Lynch every criminal and evildoer.",
+    temAcaoNoturna: true,
   },
   // --- MAFIA ---
   Godfather: {
@@ -96,16 +104,19 @@ const PAPEIS_DETALHES = {
     priority: 5,
     immunities: ["Detection Immunity"], // Aparece inocente para o Sheriff
     goal: "Kill anyone that will not submit to the Mafia.",
+    temAcaoNoturna: true,
   },
   Mafioso: {
     alignment: "Mafia Killing",
     priority: 5,
     goal: "Kill anyone that will not submit to the Mafia.",
+    temAcaoNoturna: true,
   },
   Framer: {
     alignment: "Mafia Deception",
     priority: 3,
     goal: "Kill anyone that will not submit to the Mafia.",
+    temAcaoNoturna: true,
   },
   // --- NEUTRAL ---
   "Serial Killer": {
@@ -114,6 +125,7 @@ const PAPEIS_DETALHES = {
     priority: 5,
     immunities: ["Role block Immunity"],
     goal: "Kill everyone who would oppose you.",
+    temAcaoNoturna: true,
   },
   Executioner: {
     alignment: "Neutral Evil",
