@@ -287,7 +287,7 @@ class TelegramBotObserver {
         // Enviar mensagens privadas para papéis com ações
         dados.jogadoresVivos.forEach((jogadorInfo) => {
           if (jogadorInfo.papel.temAcaoNoturna) {
-            const alvos = dados.jogadoresVivos
+            let alvos = dados.jogadoresVivos
               .filter((alvo) => alvo.jogador.id !== jogadorInfo.jogador.id)
               .map((alvo) => [
                 {
@@ -295,6 +295,14 @@ class TelegramBotObserver {
                   callback_data: `habil_${alvo.jogador.nomeFicticio}`,
                 },
               ]);
+            if (jogadorInfo.papel.nome === "Doctor") {
+              alvos.unshift([
+                {
+                  text: "Curar a si mesmo",
+                  callback_data: `habil_${jogadorInfo.jogador.nomeFicticio}`,
+                },
+              ]);
+            }
             if (alvos.length > 0) {
               this.bot.sendMessage(
                 jogadorInfo.jogador.id,

@@ -79,6 +79,7 @@ class Game {
     this.votos = new Map();
     this.jogadoresEmJulgamento = null;
     this.votosJulgamento = new Map();
+    this.doctorsSelfHealed = new Set();
     this.prisioneiro = null;
     this.jailorExecutions = 3;
     this.jailorDecisao = null;
@@ -348,7 +349,7 @@ class Game {
   processarAcoesNoturnas() {
     let mortes = [];
     let resultadosPrivados = [];
-    let curas = new Set();
+    let curas = new Map();
     let bloqueios = new Set();
     let frames = new Set();
     let visitasNoturnas = new Map();
@@ -399,7 +400,17 @@ class Game {
           bloqueios.add(alvo.jogador.id);
           break;
         case "Doctor":
-          curas.add(alvo.jogador.id);
+          if (ator.jogador.id === alvo.jogador.id) {
+            if (this.doctorsSelfHealed.has(ator.jogador.id)) {
+              resultadosPrivados.push({
+                jogadorId: ator.jogador.id,
+                mensagem: "Você não pode se curar mais de uma vez.",
+              });
+              return;
+            }
+            this.doctorsSelfHealed.add(ator.jogador.id);
+          }
+          curas.set(alvo.jogador.id, ator.jogador.id);
           break;
         case "Framer":
           frames.add(alvo.jogador.id);
@@ -450,7 +461,13 @@ class Game {
         case "Godfather":
         case "Serial Killer":
           // Se o alvo não foi curado, ele morre.
-          if (!curas.has(alvo.jogador.id)) {
+          if (curas.has(alvo.jogador.id)) {
+            const doctorId = curas.get(alvo.jogador.id);
+            resultadosPrivados.push({
+              jogadorId: doctorId,
+              mensagem: `Seu alvo foi atacado, mas você o salvou!`,
+            });
+          } else {
             mortes.push(alvo.jogador.nomeFicticio);
           }
           break;
