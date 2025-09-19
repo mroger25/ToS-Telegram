@@ -69,28 +69,6 @@ bot.onText(/\/start (.+)/, (msg, match) => {
   playerGames.set(jogador.id, groupId);
 });
 
-bot.onText(/\/habilidade (.+)/, (msg, match) => {
-  const atorId = msg.from.id;
-  const alvoNome = match[1];
-
-  if (msg.chat.type !== "private") {
-    bot.sendMessage(
-      msg.chat.id,
-      "Use este comando no seu chat privado comigo."
-    );
-    return;
-  }
-
-  const groupId = playerGames.get(atorId);
-  if (!groupId || !games.has(groupId)) {
-    bot.sendMessage(atorId, "Você não está em um jogo ativo.");
-    return;
-  }
-
-  const game = games.get(groupId);
-  game.registrarAcaoNoturna(atorId, alvoNome);
-});
-
 bot.onText(/\/jail (.+)/, (msg, match) => {
   const atorId = msg.from.id;
   const alvoNome = match[1];
@@ -139,28 +117,45 @@ bot.on("message", (msg) => {
 bot.on("callback_query", (callbackQuery) => {
   const msg = callbackQuery.message;
   const data = callbackQuery.data;
-  const votadorId = callbackQuery.from.id;
-  const groupId = msg.chat.id;
+  const atorId = callbackQuery.from.id;
 
-  if (!games.has(groupId)) return;
-  const game = games.get(groupId);
-
-  if (data.startsWith("votar_")) {
-    const alvoNome = data.substring(6);
-    game.registrarVoto(votadorId, alvoNome);
-    bot.answerCallbackQuery(callbackQuery.id, {
-      text: `Você votou em ${alvoNome}`,
-    });
-  } else if (data.startsWith("julgar_")) {
-    const veredito = data.substring(7);
-
-    if (veredito !== "abster") {
-      game.registrarVotoJulgamento(votadorId, veredito);
+  if (data.startsWith("votar_") || data.startsWith("julgar_")) {
+    const groupId = msg.chat.id;
+    if (!games.has(groupId)) return;
+    const game = games.get(groupId);
+    if (data.startsWith("votar_")) {
+      const alvoNome = data.substring(6);
+      game.registrarVoto(atorId, alvoNome);
+      bot.answerCallbackQuery(callbackQuery.id, {
+        text: `Você votou em ${alvoNome}`,
+      });
+    } else if (data.startsWith("julgar_")) {
+      const veredito = data.substring(7);
+      if (veredito !== "abster") {
+        game.registrarVotoJulgamento(atorId, veredito);
+      }
+      bot.answerCallbackQuery(callbackQuery.id, {
+        text: `Você votou: ${
+          veredito.charAt(0).toUpperCase() + veredito.slice(1)
+        }`,
+      });
     }
-    bot.answerCallbackQuery(callbackQuery.id, {
-      text: `Você votou: ${
-        veredito.charAt(0).toUpperCase() + veredito.slice(1)
-      }`,
+  } else if (data.startsWith("habil_")) {
+    const alvoNome = data.substring(6);
+    const groupId = playerGames.get(atorId);
+    if (!groupId || !games.has(groupId)) {
+      bot.answerCallbackQuery(callbackQuery.id, {
+        text: "Erro: Não foi possível encontrar seu jogo.",
+      });
+      return;
+    }
+    const game = games.get(groupId);
+    game.registrarAcaoNoturna(atorId, alvoNome);
+    bot.editMessageText(`Você escolheu usar sua habilidade em *${alvoNome}*.`, {
+      chat_id: msg.chat.id,
+      message_id: msg.message_id,
+      parse_mode: "Markdown",
     });
+    bot.answerCallbackQuery(callbackQuery.id);
   }
 });

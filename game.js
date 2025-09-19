@@ -351,6 +351,17 @@ class Game {
     let curas = new Set();
     let bloqueios = new Set();
     let frames = new Set();
+    let visitasNoturnas = new Map();
+
+    const registrarVisita = (visitante, visitado) => {
+      if (!visitado) return;
+      if (!visitasNoturnas.has(visitado.jogador.id)) {
+        visitasNoturnas.set(visitado.jogador.id, []);
+      }
+      visitasNoturnas
+        .get(visitado.jogador.id)
+        .push(visitante.jogador.nomeFicticio);
+    };
 
     if (this.prisioneiro) {
       bloqueios.add(this.prisioneiro.jogador.id);
@@ -379,6 +390,10 @@ class Game {
     );
 
     acoesOrdenadas.forEach(({ ator, alvo }) => {
+      // if (ator.papel.nome !== "Lookout") {
+      registrarVisita(ator, alvo);
+      // }
+
       switch (ator.papel.nome) {
         case "Tavern Keeper":
           bloqueios.add(alvo.jogador.id);
@@ -414,6 +429,21 @@ class Game {
           resultadosPrivados.push({
             jogadorId: ator.jogador.id,
             mensagem: `Resultado da investigação em ${alvo.jogador.nomeFicticio}: ${resultadoInvestigator}`,
+          });
+          break;
+        case "Lookout":
+          const visitantes = visitasNoturnas.get(alvo.jogador.id) || [];
+          let mensagemLookout;
+          if (visitantes.length > 0) {
+            mensagemLookout =
+              `Alguém visitou seu alvo (*${alvo.jogador.nomeFicticio}*) na noite passada!\n\n` +
+              `Visitantes:\n${visitantes.join(`\n`)}`;
+          } else {
+            mensagemLookout = `Ninguém visitou seu alvo (*${alvo.jogador.nomeFicticio}*) na noite passada.`;
+          }
+          resultadosPrivados.push({
+            jogadorId: ator.jogador.id,
+            mensagem: mensagemLookout,
           });
           break;
         case "Mafioso":

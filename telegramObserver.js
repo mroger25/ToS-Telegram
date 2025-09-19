@@ -287,10 +287,26 @@ class TelegramBotObserver {
         // Enviar mensagens privadas para papéis com ações
         dados.jogadoresVivos.forEach((jogadorInfo) => {
           if (jogadorInfo.papel.temAcaoNoturna) {
-            this.bot.sendMessage(
-              jogadorInfo.jogador.id,
-              `É noite. Use /habilidade [nome] para usar sua habilidade.`
-            );
+            const alvos = dados.jogadoresVivos
+              .filter((alvo) => alvo.jogador.id !== jogadorInfo.jogador.id)
+              .map((alvo) => [
+                {
+                  text: alvo.jogador.nomeFicticio,
+                  callback_data: `habil_${alvo.jogador.nomeFicticio}`,
+                },
+              ]);
+            if (alvos.length > 0) {
+              this.bot.sendMessage(
+                jogadorInfo.jogador.id,
+                "É noite. Escolha seu alvo:",
+                { reply_markup: { inline_keyboard: alvos } }
+              );
+            } else {
+              this.bot.sendMessage(
+                jogadorInfo.jogador.id,
+                "É noite, mas não há alvos disponíveis."
+              );
+            }
           }
         });
         break;

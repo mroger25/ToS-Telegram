@@ -66,7 +66,7 @@ const PAPEIS_DETALHES = {
     priority: 1, // Prioridade para prender
     executionPriority: 5, // Prioridade para executar
     goal: "Lynch every criminal and evildoer.",
-    temAcaoNoturna: true,
+    // temAcaoNoturna: true,
   },
   Doctor: {
     alignment: "Town Protective",
