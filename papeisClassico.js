@@ -64,7 +64,6 @@ const PAPEIS_DETALHES = {
         Godfather: "Bodyguard, Godfather, or Arsonist.",
         Arsonist: "Bodyguard, Godfather, or Arsonist.",
       };
-
       const result = roleToGroupMap[targetRoleName];
       return result
         ? `Seu alvo pode ser um: ${result}`
@@ -108,6 +107,11 @@ const PAPEIS_DETALHES = {
     priority: 1, // Prioridade alta para ficar em alerta
     goal: "Lynch every criminal and evildoer.",
     temAcaoNoturna: true,
+  },
+  Mayor: {
+    alignment: "Town Support",
+    unique: true,
+    goal: "Lynch every criminal and evildoer.",
   },
   // --- MAFIA ---
   Godfather: {
@@ -178,6 +182,7 @@ const RANDOM_TOWN_ROLES = [
   "Sheriff",
   "Investigator",
   "Tavern Keeper",
+  "Mayor",
 ];
 
 module.exports = {

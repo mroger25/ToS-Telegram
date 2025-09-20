@@ -383,6 +383,16 @@ class TelegramBotObserver {
           { parse_mode: "Markdown" }
         );
         break;
+
+      case "mayor_revealed":
+        this.bot.sendMessage(
+          this.chatId,
+          `*REVELAÇÃO DE CARGO!*\n\n` +
+            `*${dados.mayor.jogador.nomeFicticio}* revelou-se como o *Mayor*!\n\n` +
+            `Seus votos agora contam como 3.`,
+          { parse_mode: "Markdown" }
+        );
+        break;
     }
   }
 }

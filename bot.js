@@ -42,6 +42,57 @@ const gerarUid = () => {
   return timestamp + randomNum;
 };
 
+// COMANDOS
+
+bot.onText(/\/execute/, (msg) => {
+  const atorId = msg.from.id;
+
+  if (msg.chat.type !== "private") return; // Comando apenas privado
+
+  const groupId = playerGames.get(atorId);
+  if (!groupId || !games.has(groupId)) return;
+
+  const game = games.get(groupId);
+  game.registrarExecucao(atorId);
+});
+
+bot.onText(/\/jail (.+)/, (msg, match) => {
+  const atorId = msg.from.id;
+  const alvoNome = match[1];
+
+  const groupId = playerGames.get(atorId);
+  if (!groupId || !games.has(groupId)) {
+    bot.sendMessage(atorId, "Você não está em um jogo ativo.");
+    return;
+  }
+
+  const game = games.get(groupId);
+  if (game.fase !== "discussao") {
+    bot.sendMessage(atorId, "Você só pode prender alguém durante o dia.");
+    return;
+  }
+
+  game.registrarPrisao(atorId, alvoNome);
+});
+
+bot.onText(/\/start (.+)/, (msg, match) => {
+  const chatId = msg.chat.id;
+  const link = match[1];
+  const groupId = links.get(link);
+
+  if (!groupId || !games.has(groupId)) {
+    bot.sendMessage(chatId, "Link inválido ou sala não encontrada.");
+    return;
+  }
+
+  const game = games.get(groupId);
+  const jogador = { id: msg.from.id, nome: msg.from.first_name };
+
+  // Apenas chamamos o método do jogo. A notificação é responsabilidade do jogo.
+  game.addPlayer(jogador);
+  playerGames.set(jogador.id, groupId);
+});
+
 bot.onText(/\/startclassic/, (msg) => {
   const chatId = msg.chat.id;
   const nomeSala = msg.chat.title;
@@ -70,54 +121,20 @@ bot.onText(/\/startclassic/, (msg) => {
   game.startLobbyTimer(30000);
 });
 
-bot.onText(/\/start (.+)/, (msg, match) => {
-  const chatId = msg.chat.id;
-  const link = match[1];
-  const groupId = links.get(link);
-
-  if (!groupId || !games.has(groupId)) {
-    bot.sendMessage(chatId, "Link inválido ou sala não encontrada.");
-    return;
-  }
-
-  const game = games.get(groupId);
-  const jogador = { id: msg.from.id, nome: msg.from.first_name };
-
-  // Apenas chamamos o método do jogo. A notificação é responsabilidade do jogo.
-  game.addPlayer(jogador);
-  playerGames.set(jogador.id, groupId);
-});
-
-bot.onText(/\/jail (.+)/, (msg, match) => {
+bot.onText(/\/reveal/, (msg) => {
   const atorId = msg.from.id;
-  const alvoNome = match[1];
+  const groupId = playerGames.get(atorId) || msg.chat.id;
 
-  const groupId = playerGames.get(atorId);
-  if (!groupId || !games.has(groupId)) {
-    bot.sendMessage(atorId, "Você não está em um jogo ativo.");
+  if (!games.has(groupId)) {
+    bot.sendMessage(atorId, "Você não está em um jogo ativo para se revelar.");
     return;
   }
 
   const game = games.get(groupId);
-  if (game.fase !== "discussao") {
-    bot.sendMessage(atorId, "Você só pode prender alguém durante o dia.");
-    return;
-  }
-
-  game.registrarPrisao(atorId, alvoNome);
+  game.revealMayor(atorId);
 });
 
-bot.onText(/\/execute/, (msg) => {
-  const atorId = msg.from.id;
-
-  if (msg.chat.type !== "private") return; // Comando apenas privado
-
-  const groupId = playerGames.get(atorId);
-  if (!groupId || !games.has(groupId)) return;
-
-  const game = games.get(groupId);
-  game.registrarExecucao(atorId);
-});
+// EVENTS
 
 bot.on("message", (msg) => {
   if (msg.text && msg.text.startsWith("/")) return;

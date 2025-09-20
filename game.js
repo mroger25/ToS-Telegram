@@ -85,14 +85,6 @@ class Game {
     this.jailorDecisao = null;
   }
 
-  addObserver(observer) {
-    this.observers.push(observer);
-  }
-
-  notifyObservers(evento, dados) {
-    this.observers.forEach((observer) => observer.update(evento, dados, this));
-  }
-
   addPlayer(jogador) {
     if (this.jogadores.length >= this.maxJogadores) {
       this.notifyObservers("sala_cheia", { jogadorId: jogador.id });
@@ -109,73 +101,42 @@ class Game {
     });
   }
 
-  startLobbyTimer(timeoutMs, onTimerEndCallback) {
-    if (this.lobbyTimer) {
-      clearTimeout(this.lobbyTimer);
-    }
-
-    this.lobbyTimer = setTimeout(() => {
-      this.startGame();
-
-      if (onTimerEndCallback) {
-        onTimerEndCallback();
-      }
-    }, timeoutMs);
+  addObserver(observer) {
+    this.observers.push(observer);
   }
 
-  startGame() {
-    const numJogadores = this.jogadores.length;
-    if (numJogadores < this.minJogadores || numJogadores > this.maxJogadores) {
-      this.estado = "finalizado";
-      this.notifyObservers("falha_ao_iniciar", {
-        motivo: "jogadores_insuficientes",
+  encaminharMensagemPrisao(remetenteId, texto) {
+    if (!this.prisioneiro) return;
+
+    const jailor = this.jogadores.find((j) => j.papel.nome === "Jailor");
+    const eJailor = remetenteId === jailor.jogador.id;
+    const ePrisioneiro = remetenteId === this.prisioneiro.jogador.id;
+
+    if (this.fase === "noite" && (eJailor || ePrisioneiro)) {
+      const destinatarioId = eJailor
+        ? this.prisioneiro.jogador.id
+        : jailor.jogador.id;
+      const nomeRemetente = eJailor ? "Jailor" : "Prisioneiro";
+      this.notifyObservers("mensagem_prisao", {
+        destinatarioId,
+        nomeRemetente,
+        texto,
       });
-      return;
     }
+  }
 
-    this.estado = "em_jogo";
-    this.notifyObservers("jogo_iniciando", {});
-
-    const nomesFicticios = gerarNomesFicticios(this.jogadores);
-    const listaDePapeis = sortearPapeisModoClassico(this.jogadores.length);
-
-    const jogadoresComPapeis = [];
-    nomesFicticios.forEach((jogador, i) => {
-      const nomePapel = listaDePapeis[i];
-      jogadoresComPapeis.push({
-        jogador: jogador,
-        papel: {
-          nome: nomePapel,
-          ...PAPEIS_DETALHES[nomePapel],
-        },
-        status: "vivo",
-        alvoExecutioner: null,
-      });
-    });
-
-    this.jogadores = jogadoresComPapeis;
-
-    const executioner = this.jogadores.find(
-      (j) => j.papel.nome === "Executioner"
+  executarLinchamento() {
+    const jogadorMorto = this.jogadorEmJulgamento;
+    // Remove o jogador da lista de vivos
+    this.jogadoresVivos = this.jogadoresVivos.filter(
+      (j) => j.jogador.id !== jogadorMorto.jogador.id
     );
-    if (executioner) {
-      const alvosPossiveis = this.jogadores.filter(
-        (j) =>
-          j.papel.alignment.startsWith("Town") &&
-          j.papel.nome !== "Jailor" &&
-          j.papel.nome !== "Mayor"
-      );
-      if (alvosPossiveis.length > 0) {
-        executioner.alvoExecutioner =
-          _.sample(alvosPossiveis).jogador.nomeFicticio;
-      }
-    }
 
-    this.jogadoresVivos = [...this.jogadores];
-    this.notifyObservers("papeis_distribuidos", {
-      executionerTarget: executioner?.alvoExecutioner,
-    });
-    setTimeout(() => this.iniciarDia(), 5000);
+    this.notifyObservers("jogador_linchado", { jogadorMorto: jogadorMorto });
+
+    if (this.verificarFimDeJogo()) return;
+
+    this.iniciarNoite();
   }
 
   iniciarDia() {
@@ -200,57 +161,6 @@ class Game {
     }
   }
 
-  iniciarVotacao() {
-    this.fase = "votacao";
-    this.votos.clear();
-    this.notifyObservers("votacao_iniciou", {
-      jogadoresVivos: this.jogadoresVivos,
-    });
-    setTimeout(() => this.processarVotos(), 60000);
-  }
-
-  processarVotos() {
-    if (this.votos.size === 0) {
-      this.notifyObservers("votacao_sem_votos", {});
-      this.iniciarNoite();
-      return;
-    }
-
-    const contagem = new Map();
-    for (const alvoId of this.votos.values()) {
-      contagem.set(alvoId, (contagem.get(alvoId) || 0) + 1);
-    }
-
-    let maisVotadoId = null;
-    let maxVotos = 0;
-    for (const [jogadorId, numVotos] of contagem.entries()) {
-      if (numVotos > maxVotos) {
-        maxVotos = numVotos;
-        maisVotadoId = jogadorId;
-      }
-    }
-
-    // Verificar se houve empate
-    const empates = Array.from(contagem.values()).filter(
-      (v) => v === maxVotos
-    ).length;
-
-    if (
-      empates > 1 ||
-      maxVotos < Math.floor(this.jogadoresVivos.length / 2) + 1
-    ) {
-      // Precisa de maioria simples
-      this.notifyObservers("votacao_sem_julgamento", {});
-      this.iniciarNoite();
-      return;
-    }
-
-    this.jogadorEmJulgamento = this.jogadoresVivos.find(
-      (j) => j.jogador.id === maisVotadoId
-    );
-    this.iniciarDefesa();
-  }
-
   iniciarDefesa() {
     this.fase = "defesa";
     this.notifyObservers("defesa_iniciou", {
@@ -272,44 +182,14 @@ class Game {
     setTimeout(() => this.processarJulgamento(), 30000);
   }
 
-  registrarVotoJulgamento(votadorId, veredito) {
-    if (this.fase !== "julgamento") return;
-    // Não permite que o acusado vote no próprio julgamento
-    if (votadorId === this.jogadorEmJulgamento.jogador.id) return;
-
-    this.votosJulgamento.set(votadorId, veredito);
-    const votador = this.jogadores.find((j) => j.jogador.id === votadorId);
-    this.notifyObservers("voto_julgamento_registrado", {
-      votador: votador.jogador.nomeFicticio,
+  iniciarNoite() {
+    this.fase = "noite";
+    this.acoesNoturnas.clear();
+    this.notifyObservers("noite_iniciou", {
+      dia: this.dia,
+      jogadoresVivos: this.jogadoresVivos,
     });
-  }
-
-  processarJulgamento() {
-    let votosCulpado = 0;
-    let votosInocente = 0;
-
-    for (const veredito of this.votosJulgamento.values()) {
-      if (veredito === "culpado") votosCulpado++;
-      if (veredito === "inocente") votosInocente++;
-    }
-
-    const resultado = {
-      culpado: votosCulpado,
-      inocente: votosInocente,
-      votos: this.votosJulgamento,
-      jogadores: this.jogadores,
-    };
-
-    this.notifyObservers("julgamento_finalizado", resultado);
-
-    if (votosCulpado > votosInocente) {
-      this.iniciarUltimasPalavras();
-    } else {
-      this.notifyObservers("jogador_inocentado", {
-        jogador: this.jogadorEmJulgamento,
-      });
-      this.iniciarNoite();
-    }
+    setTimeout(() => this.iniciarDia(), 60000);
   }
 
   iniciarUltimasPalavras() {
@@ -322,28 +202,17 @@ class Game {
     setTimeout(() => this.executarLinchamento(), 15000);
   }
 
-  executarLinchamento() {
-    const jogadorMorto = this.jogadorEmJulgamento;
-    // Remove o jogador da lista de vivos
-    this.jogadoresVivos = this.jogadoresVivos.filter(
-      (j) => j.jogador.id !== jogadorMorto.jogador.id
-    );
-
-    this.notifyObservers("jogador_linchado", { jogadorMorto: jogadorMorto });
-
-    if (this.verificarFimDeJogo()) return;
-
-    this.iniciarNoite();
-  }
-
-  iniciarNoite() {
-    this.fase = "noite";
-    this.acoesNoturnas.clear();
-    this.notifyObservers("noite_iniciou", {
-      dia: this.dia,
+  iniciarVotacao() {
+    this.fase = "votacao";
+    this.votos.clear();
+    this.notifyObservers("votacao_iniciou", {
       jogadoresVivos: this.jogadoresVivos,
     });
-    setTimeout(() => this.iniciarDia(), 60000);
+    setTimeout(() => this.processarVotos(), 60000);
+  }
+
+  notifyObservers(evento, dados) {
+    this.observers.forEach((observer) => observer.update(evento, dados, this));
   }
 
   processarAcoesNoturnas() {
@@ -401,6 +270,15 @@ class Game {
           bloqueios.add(alvo.jogador.id);
           break;
         case "Doctor":
+          const isMayorRevealed =
+            alvo.papel.nome === "Mayor" && alvo.isMayorRevealed;
+          if (isMayorRevealed) {
+            resultadosPrivados.push({
+              jogadorId: ator.jogador.id,
+              mensagem: "Você não pode curar um Mayor que já se revelou.",
+            });
+            return;
+          }
           if (ator.jogador.id === alvo.jogador.id) {
             if (this.doctorsSelfHealed.has(ator.jogador.id)) {
               resultadosPrivados.push({
@@ -454,11 +332,22 @@ class Game {
       const isFramed = frames.has(alvo.jogador.id);
       switch (ator.papel.nome) {
         case "Sheriff":
-          let resultadoSheriff = ator.papel.checkSuspicious(alvo.papel);
-          if (isFramed) resultadoSheriff = "suspeito";
+          const checkResult = ator.papel.checkSuspicious(alvo.papel);
+          let finalResult = checkResult;
+          if (isFramed) {
+            finalResult = "suspeito";
+          }
+          let mensagemSheriff = "";
+          if (finalResult === "suspeito") {
+            mensagemSheriff = `Seu alvo é suspeito ou foi incriminado!`;
+          } else {
+            mensagemSheriff = `Você não conseguiu encontrar evidências de irregularidades. Seu alvo é inocente ou sabe esconder segredos!`;
+          }
           resultadosPrivados.push({
             jogadorId: ator.jogador.id,
-            mensagem: `Resultado da interrogação de ${alvo.jogador.nomeFicticio}: Ele parece ${resultadoSheriff}.`,
+            mensagem:
+              `Resultado da interrogação em *${alvo.jogador.nomeFicticio}*:\n` +
+              `${mensagemSheriff}`,
           });
           break;
         case "Investigator":
@@ -533,6 +422,86 @@ class Game {
     return { mortes: mortesUnicas, resultadosPrivados };
   }
 
+  processarJulgamento() {
+    let votosCulpado = 0;
+    let votosInocente = 0;
+
+    for (const [votadorId, veredito] of this.votosJulgamento.entries()) {
+      const votador = this.jogadores.find((j) => j.jogador.id === votadorId);
+      const pesoVoto =
+        votador && votador.papel.nome === "Mayor" && votador.isMayorRevealed
+          ? 3
+          : 1;
+      if (veredito === "culpado") votosCulpado += pesoVoto;
+      if (veredito === "inocente") votosInocente += pesoVoto;
+    }
+
+    const resultado = {
+      culpado: votosCulpado,
+      inocente: votosInocente,
+      votos: this.votosJulgamento,
+      jogadores: this.jogadores,
+    };
+
+    this.notifyObservers("julgamento_finalizado", resultado);
+
+    if (votosCulpado > votosInocente) {
+      this.iniciarUltimasPalavras();
+    } else {
+      this.notifyObservers("jogador_inocentado", {
+        jogador: this.jogadorEmJulgamento,
+      });
+      this.iniciarNoite();
+    }
+  }
+
+  processarVotos() {
+    if (this.votos.size === 0) {
+      this.notifyObservers("votacao_sem_votos", {});
+      this.iniciarNoite();
+      return;
+    }
+
+    const contagem = new Map();
+    for (const [votadorId, alvoId] of this.votos.entries()) {
+      const votador = this.jogadores.find((j) => j.jogador.id === votadorId);
+      const pesoVoto =
+        votador && votador.papel.nome === "Mayor" && votador.isMayorRevealed
+          ? 3
+          : 1;
+      contagem.set(alvoId, (contagem.get(alvoId) || 0) + pesoVoto);
+    }
+
+    let maisVotadoId = null;
+    let maxVotos = 0;
+    for (const [jogadorId, numVotos] of contagem.entries()) {
+      if (numVotos > maxVotos) {
+        maxVotos = numVotos;
+        maisVotadoId = jogadorId;
+      }
+    }
+
+    // Verificar se houve empate
+    const empates = Array.from(contagem.values()).filter(
+      (v) => v === maxVotos
+    ).length;
+
+    if (
+      empates > 1 ||
+      maxVotos < Math.floor(this.jogadoresVivos.length / 2) + 1
+    ) {
+      // Precisa de maioria simples
+      this.notifyObservers("votacao_sem_julgamento", {});
+      this.iniciarNoite();
+      return;
+    }
+
+    this.jogadorEmJulgamento = this.jogadoresVivos.find(
+      (j) => j.jogador.id === maisVotadoId
+    );
+    this.iniciarDefesa();
+  }
+
   registrarAcaoNoturna(atorId, alvoNomeFicticio) {
     if (this.fase !== "noite") return;
     const ator = this.jogadoresVivos.find((j) => j.jogador.id === atorId);
@@ -546,6 +515,155 @@ class Game {
         nomeAlvo: alvo.jogador.nomeFicticio,
       });
     }
+  }
+
+  registrarExecucao(jailorId) {
+    if (this.fase !== "noite" || !this.prisioneiro) return;
+
+    const jailor = this.jogadores.find(
+      (j) => j.jogador.id === jailorId && j.papel.nome === "Jailor"
+    );
+    // Verifica se o Jailor está vivo e se tem execuções restantes
+    if (jailor && jailor.status === "vivo" && this.jailorExecutions > 0) {
+      this.jailorDecisao = "executar";
+      this.notifyObservers("execucao_registrada", { jailorId: jailorId });
+    }
+  }
+
+  registrarPrisao(jailorId, alvoNomeFicticio) {
+    if (this.fase !== "discussao") return;
+    const jailor = this.jogadoresVivos.find(
+      (j) => j.jogador.id === jailorId && j.papel.nome === "Jailor"
+    );
+    const alvo = this.jogadoresVivos.find(
+      (j) => j.jogador.nomeFicticio === alvoNomeFicticio
+    );
+    if (jailor && alvo) {
+      this.prisioneiro = alvo;
+      this.notifyObservers("prisao_sucesso", {
+        jailor: jailor,
+        prisioneiro: this.prisioneiro,
+      });
+    } else {
+      this.notifyObservers("prisao_falhou", { jogadorId: jailorId });
+    }
+  }
+
+  registrarVoto(votadorId, alvoNomeFicticio) {
+    if (this.fase !== "votacao") return;
+
+    const votador = this.jogadoresVivos.find((j) => j.jogador.id === votadorId);
+    const alvo = this.jogadoresVivos.find(
+      (j) => j.jogador.nomeFicticio === alvoNomeFicticio
+    );
+
+    if (votador && alvo && votador.jogador.id === alvo.jogador.id) {
+      this.notifyObservers("erro_votacao", {
+        jogadorId: votadorId,
+        motivo: "Você não pode votar em si mesmo.",
+      });
+      return;
+    }
+
+    if (votador && alvo) {
+      this.votos.set(votadorId, alvo.jogador.id);
+      this.notifyObservers("voto_registrado", {
+        votador: votador.jogador.nomeFicticio,
+        alvo: alvo.jogador.nomeFicticio,
+      });
+    }
+  }
+
+  registrarVotoJulgamento(votadorId, veredito) {
+    if (this.fase !== "julgamento") return;
+    // Não permite que o acusado vote no próprio julgamento
+    if (votadorId === this.jogadorEmJulgamento.jogador.id) return;
+
+    this.votosJulgamento.set(votadorId, veredito);
+    const votador = this.jogadores.find((j) => j.jogador.id === votadorId);
+    this.notifyObservers("voto_julgamento_registrado", {
+      votador: votador.jogador.nomeFicticio,
+    });
+  }
+
+  revealMayor(playerId) {
+    if (this.fase !== "discussao" && this.fase !== "votacao") return;
+    const mayor = this.jogadoresVivos.find(
+      (j) => j.jogador.id === playerId && j.papel.nome === "Mayor"
+    );
+    if (mayor && !mayor.isMayorRevealed) {
+      mayor.isMayorRevealed = true;
+      this.notifyObservers("mayor_revealed", { mayor });
+    }
+  }
+
+  startGame() {
+    const numJogadores = this.jogadores.length;
+    if (numJogadores < this.minJogadores || numJogadores > this.maxJogadores) {
+      this.estado = "finalizado";
+      this.notifyObservers("falha_ao_iniciar", {
+        motivo: "jogadores_insuficientes",
+      });
+      return;
+    }
+
+    this.estado = "em_jogo";
+    this.notifyObservers("jogo_iniciando", {});
+
+    const nomesFicticios = gerarNomesFicticios(this.jogadores);
+    const listaDePapeis = sortearPapeisModoClassico(this.jogadores.length);
+
+    const jogadoresComPapeis = [];
+    nomesFicticios.forEach((jogador, i) => {
+      const nomePapel = listaDePapeis[i];
+      jogadoresComPapeis.push({
+        jogador: jogador,
+        papel: {
+          nome: nomePapel,
+          ...PAPEIS_DETALHES[nomePapel],
+        },
+        status: "vivo",
+        alvoExecutioner: null,
+        isMayorRevealed: false,
+      });
+    });
+
+    this.jogadores = jogadoresComPapeis;
+
+    const executioner = this.jogadores.find(
+      (j) => j.papel.nome === "Executioner"
+    );
+    if (executioner) {
+      const alvosPossiveis = this.jogadores.filter(
+        (j) =>
+          j.papel.alignment.startsWith("Town") &&
+          ["Jailor", "Mayor"].includes(j.papel.nome)
+      );
+      if (alvosPossiveis.length > 0) {
+        executioner.alvoExecutioner =
+          _.sample(alvosPossiveis).jogador.nomeFicticio;
+      }
+    }
+
+    this.jogadoresVivos = [...this.jogadores];
+    this.notifyObservers("papeis_distribuidos", {
+      executionerTarget: executioner?.alvoExecutioner,
+    });
+    setTimeout(() => this.iniciarDia(), 5000);
+  }
+
+  startLobbyTimer(timeoutMs, onTimerEndCallback) {
+    if (this.lobbyTimer) {
+      clearTimeout(this.lobbyTimer);
+    }
+
+    this.lobbyTimer = setTimeout(() => {
+      this.startGame();
+
+      if (onTimerEndCallback) {
+        onTimerEndCallback();
+      }
+    }, timeoutMs);
   }
 
   verificarFimDeJogo() {
@@ -597,83 +715,6 @@ class Game {
       this.notifyObservers("jogo_finalizado", { vencedores });
     }
     return fimDeJogo;
-  }
-
-  registrarVoto(votadorId, alvoNomeFicticio) {
-    if (this.fase !== "votacao") return;
-
-    const votador = this.jogadoresVivos.find((j) => j.jogador.id === votadorId);
-    const alvo = this.jogadoresVivos.find(
-      (j) => j.jogador.nomeFicticio === alvoNomeFicticio
-    );
-
-    if (votador && alvo && votador.jogador.id === alvo.jogador.id) {
-      this.notifyObservers("erro_votacao", {
-        jogadorId: votadorId,
-        motivo: "Você não pode votar em si mesmo.",
-      });
-      return;
-    }
-
-    if (votador && alvo) {
-      this.votos.set(votadorId, alvo.jogador.id);
-      this.notifyObservers("voto_registrado", {
-        votador: votador.jogador.nomeFicticio,
-        alvo: alvo.jogador.nomeFicticio,
-      });
-    }
-  }
-
-  registrarPrisao(jailorId, alvoNomeFicticio) {
-    if (this.fase !== "discussao") return;
-    const jailor = this.jogadoresVivos.find(
-      (j) => j.jogador.id === jailorId && j.papel.nome === "Jailor"
-    );
-    const alvo = this.jogadoresVivos.find(
-      (j) => j.jogador.nomeFicticio === alvoNomeFicticio
-    );
-    if (jailor && alvo) {
-      this.prisioneiro = alvo;
-      this.notifyObservers("prisao_sucesso", {
-        jailor: jailor,
-        prisioneiro: this.prisioneiro,
-      });
-    } else {
-      this.notifyObservers("prisao_falhou", { jogadorId: jailorId });
-    }
-  }
-
-  registrarExecucao(jailorId) {
-    if (this.fase !== "noite" || !this.prisioneiro) return;
-
-    const jailor = this.jogadores.find(
-      (j) => j.jogador.id === jailorId && j.papel.nome === "Jailor"
-    );
-    // Verifica se o Jailor está vivo e se tem execuções restantes
-    if (jailor && jailor.status === "vivo" && this.jailorExecutions > 0) {
-      this.jailorDecisao = "executar";
-      this.notifyObservers("execucao_registrada", { jailorId: jailorId });
-    }
-  }
-
-  encaminharMensagemPrisao(remetenteId, texto) {
-    if (!this.prisioneiro) return;
-
-    const jailor = this.jogadores.find((j) => j.papel.nome === "Jailor");
-    const eJailor = remetenteId === jailor.jogador.id;
-    const ePrisioneiro = remetenteId === this.prisioneiro.jogador.id;
-
-    if (this.fase === "noite" && (eJailor || ePrisioneiro)) {
-      const destinatarioId = eJailor
-        ? this.prisioneiro.jogador.id
-        : jailor.jogador.id;
-      const nomeRemetente = eJailor ? "Jailor" : "Prisioneiro";
-      this.notifyObservers("mensagem_prisao", {
-        destinatarioId,
-        nomeRemetente,
-        texto,
-      });
-    }
   }
 }
 
