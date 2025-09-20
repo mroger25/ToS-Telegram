@@ -28,36 +28,47 @@ const PAPEIS_DETALHES = {
     priority: 4,
     goal: "Lynch every criminal and evildoer.",
     temAcaoNoturna: true,
-    getResult: (targetRole) => {
-      const results = {
-        Sheriff: "Sheriff, Executioner, or Werewolf.",
-        Executioner: "Sheriff, Executioner, or Werewolf.",
-        Doctor: "Doctor, Disguiser, or Serial Killer.",
-        "Serial Killer": "Doctor, Disguiser, or Serial Killer.",
+    getResult: (targetRoleName) => {
+      const roleToGroupMap = {
         Vigilante: "Vigilante, Veteran, Mafioso, or Ambusher.",
         Veteran: "Vigilante, Veteran, Mafioso, or Ambusher.",
         Mafioso: "Vigilante, Veteran, Mafioso, or Ambusher.",
         Medium: "Medium, Janitor, or Retributionist.",
+        Janitor: "Medium, Janitor, or Retributionist.",
         Retributionist: "Medium, Janitor, or Retributionist.",
+        Survivor: "Survivor, Vampire Hunter, or Amnesiac.",
+        "Vampire Hunter": "Survivor, Vampire Hunter, or Amnesiac.",
+        Amnesiac: "Survivor, Vampire Hunter, or Amnesiac.",
         Spy: "Spy, Blackmailer, or Jailor.",
+        Blackmailer: "Spy, Blackmailer, or Jailor.",
         Jailor: "Spy, Blackmailer, or Jailor.",
+        Sheriff: "Sheriff, Executioner, or Werewolf.",
+        Executioner: "Sheriff, Executioner, or Werewolf.",
+        Werewolf: "Sheriff, Executioner, or Werewolf.",
         Framer: "Framer, Vampire, or Jester.",
+        Vampire: "Framer, Vampire, or Jester.",
         Jester: "Framer, Vampire, or Jester.",
-        Framed: "Framer, Vampire, or Jester.",
         Lookout: "Lookout, Forger, or Witch.",
+        Forger: "Lookout, Forger, or Witch.",
         Witch: "Lookout, Forger, or Witch.",
         "Tavern Keeper":
           "Tavern Keeper, Transporter, Bootlegger, or Hypnotist.",
         Transporter: "Tavern Keeper, Transporter, Bootlegger, or Hypnotist.",
+        Doctor: "Doctor, Disguiser, or Serial Killer.",
+        Disguiser: "Doctor, Disguiser, or Serial Killer.",
+        "Serial Killer": "Doctor, Disguiser, or Serial Killer.",
         Investigator: "Investigator, Consigliere, or Mayor.",
+        Consigliere: "Investigator, Consigliere, or Mayor.",
         Mayor: "Investigator, Consigliere, or Mayor.",
         Bodyguard: "Bodyguard, Godfather, or Arsonist.",
         Godfather: "Bodyguard, Godfather, or Arsonist.",
         Arsonist: "Bodyguard, Godfather, or Arsonist.",
       };
-      return `Your target could be a ${
-        results[targetRole.nome] || "unknown role"
-      }.`;
+
+      const result = roleToGroupMap[targetRoleName];
+      return result
+        ? `Seu alvo pode ser um: ${result}`
+        : "Não foi possível obter uma pista sobre o papel do seu alvo.";
     },
   },
   Jailor: {

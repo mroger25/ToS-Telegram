@@ -451,9 +451,9 @@ class Game {
       ) {
         return;
       }
+      const isFramed = frames.has(alvo.jogador.id);
       switch (ator.papel.nome) {
         case "Sheriff":
-          const isFramed = frames.has(alvo.jogador.id);
           let resultadoSheriff = ator.papel.checkSuspicious(alvo.papel);
           if (isFramed) resultadoSheriff = "suspeito";
           resultadosPrivados.push({
@@ -462,10 +462,18 @@ class Game {
           });
           break;
         case "Investigator":
-          let resultadoInvestigator = ator.papel.getResult(alvo.papel);
+          let resultadoInvestigator;
+          if (isFramed) {
+            resultadoInvestigator =
+              "Seu alvo pode ser um: Framer, Vampire, or Jester.";
+          } else {
+            resultadoInvestigator = ator.papel.getResult(alvo.papel.nome);
+          }
           resultadosPrivados.push({
             jogadorId: ator.jogador.id,
-            mensagem: `Resultado da investigação em ${alvo.jogador.nomeFicticio}: ${resultadoInvestigator}`,
+            mensagem:
+              `Resultado da investigação em *${alvo.jogador.nomeFicticio}*:\n` +
+              `${resultadoInvestigator}`,
           });
           break;
         case "Lookout":
