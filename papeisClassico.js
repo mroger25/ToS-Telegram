@@ -79,6 +79,7 @@ const PAPEIS_DETALHES = {
     priority: 2,
     goal: "Lynch every criminal and evildoer.",
     temAcaoNoturna: true,
+    immunities: ["Role block Immunity"],
   },
   Medium: {
     alignment: "Town Support",

@@ -390,6 +390,7 @@ class Game {
       (a, b) => (a.ator.papel.priority || 99) - (b.ator.papel.priority || 99)
     );
 
+    // Primeira passagem
     acoesOrdenadas.forEach(({ ator, alvo }) => {
       // if (ator.papel.nome !== "Lookout") {
       registrarVisita(ator, alvo);
@@ -418,6 +419,31 @@ class Game {
       }
     });
 
+    const acoesDoTavernKeeper = acoesOrdenadas.filter(
+      (a) => a.ator.papel.nome === "Tavern Keeper"
+    );
+    acoesDoTavernKeeper.forEach(({ ator, alvo }) => {
+      const isSKPreso =
+        this.prisioneiro && this.prisioneiro.jogador.id === alvo.jogador.id;
+      if (alvo.papel.nome === "Serial Killer" && !isSKPreso) {
+        if (!curas.has(ator.jogador.id)) {
+          mortes.push(ator.jogador.nomeFicticio);
+        }
+        resultadosPrivados.push({
+          jogadorId: ator.jogador.id,
+          mensagem: "Você foi atacado pelo Serial Killer que você visitou!",
+        });
+        if (curas.has(ator.jogador.id)) {
+          const doctorId = curas.get(ator.jogador.id);
+          resultadosPrivados.push({
+            jogadorId: doctorId,
+            mensagem: `Seu alvo foi atacado, mas você o salvou!`,
+          });
+        }
+      }
+    });
+
+    // Segunda passagem
     acoesOrdenadas.forEach(({ ator, alvo }) => {
       if (
         bloqueios.has(ator.jogador.id) &&
@@ -460,6 +486,16 @@ class Game {
         case "Mafioso":
         case "Godfather":
         case "Serial Killer":
+          const tavernKeeperQueBloqueou = acoesDoTavernKeeper.find(
+            (a) => a.alvo.jogador.id === ator.jogador.id
+          );
+          if (
+            ator.papel.nome === "Serial Killer" &&
+            tavernKeeperQueBloqueou &&
+            alvo.jogador.id === tavernKeeperQueBloqueou.ator.jogador.id
+          ) {
+            return;
+          }
           // Se o alvo não foi curado, ele morre.
           if (curas.has(alvo.jogador.id)) {
             const doctorId = curas.get(alvo.jogador.id);
