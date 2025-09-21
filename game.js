@@ -83,6 +83,8 @@ class Game {
     this.prisioneiro = null;
     this.jailorExecutions = 3;
     this.jailorDecisao = null;
+    this.seanceAlvos = new Map();
+    this.mediumQueUsaramSeance = new Set();
   }
 
   addPlayer(jogador) {
@@ -105,6 +107,31 @@ class Game {
     this.observers.push(observer);
   }
 
+  encaminharMensagemChatMortos(remetenteId, texto, remetenteInfo) {
+    const nomeRemetente = remetenteInfo.jogador.nomeFicticio;
+    const mortos = this.jogadores.filter((j) => j.status === "morto");
+    const mediumsVivos = this.jogadoresVivos.filter(
+      (j) => j.papel.nome === "Medium"
+    );
+
+    // Quem pode ouvir: todos os mortos e os médiuns vivos (que não estejam presos)
+    const ouvintes = [...mortos, ...mediumsVivos];
+    ouvintes.forEach((ouvinte) => {
+      // O remetente não recebe a própria mensagem de volta
+      if (ouvinte.jogador.id !== remetenteId) {
+        const estaPreso =
+          this.prisioneiro &&
+          this.prisioneiro.jogador.id === ouvinte.jogador.id;
+        // Médium preso ainda ouve, mas não pode falar (essa regra é tratada no processarMensagemPrivada)
+        this.notifyObservers("mensagem_chat_mortos", {
+          destinatarioId: ouvinte.jogador.id,
+          nomeRemetente,
+          texto,
+        });
+      }
+    });
+  }
+
   encaminharMensagemPrisao(remetenteId, texto) {
     if (!this.prisioneiro) return;
 
@@ -121,6 +148,45 @@ class Game {
         destinatarioId,
         nomeRemetente,
         texto,
+      });
+    }
+  }
+
+  encaminharMensagemSeance(remetenteId, texto, remetenteInfo) {
+    const alvoId = this.seanceAlvos.get(remetenteId) || remetenteId;
+    const mediumsNestaSeance = Array.from(this.seanceAlvos.entries())
+      .filter(([mid, tid]) => tid === alvoId)
+      .map(([mid, tid]) => mid);
+
+    const alvo = this.jogadores.find((j) => j.jogador.id === alvoId);
+
+    // Se o remetente é o alvo da séance
+    if (remetenteId === alvoId) {
+      // A mensagem vai para todos os médiuns que estão fazendo séance com ele
+      mediumsNestaSeance.forEach((mediumId) => {
+        this.notifyObservers("mensagem_seance", {
+          destinatarioId: mediumId,
+          nomeRemetente: alvo.jogador.nomeFicticio,
+          texto,
+        });
+      });
+    } else {
+      // Se o remetente é um dos médiuns
+      // A mensagem vai para o alvo
+      this.notifyObservers("mensagem_seance", {
+        destinatarioId: alvoId,
+        nomeRemetente: "Medium",
+        texto,
+      });
+      // E para outros médiuns na mesma séance
+      mediumsNestaSeance.forEach((outroMediumId) => {
+        if (outroMediumId !== remetenteId) {
+          this.notifyObservers("mensagem_seance", {
+            destinatarioId: outroMediumId,
+            nomeRemetente: "Medium",
+            texto,
+          });
+        }
       });
     }
   }
@@ -185,6 +251,12 @@ class Game {
   iniciarNoite() {
     this.fase = "noite";
     this.acoesNoturnas.clear();
+
+    this.seanceAlvos.forEach((alvoId, mediumId) => {
+      this.notifyObservers("seance_iniciada", { alvoId });
+      this.mediumQueUsaramSeance.add(mediumId);
+    });
+
     this.notifyObservers("noite_iniciou", {
       dia: this.dia,
       jogadoresVivos: this.jogadoresVivos,
@@ -455,6 +527,46 @@ class Game {
     }
   }
 
+  processarMensagemPrivada(remetenteId, texto) {
+    const jogador = this.jogadores.find((j) => j.jogador.id === remetenteId);
+    if (!jogador) return;
+
+    // Se for o Jailor ou o Prisioneiro, usa o chat da prisão
+    if (
+      this.prisioneiro &&
+      (remetenteId === this.prisioneiro.jogador.id ||
+        (jogador.papel.nome === "Jailor" && jogador.status === "vivo"))
+    ) {
+      this.encaminharMensagemPrisao(remetenteId, texto);
+      return;
+    }
+
+    // Se estiver em séance (seja como Medium ou alvo)
+    const estaEmSeance =
+      Array.from(this.seanceAlvos.values()).includes(remetenteId) ||
+      this.seanceAlvos.has(remetenteId);
+    if (this.fase === "noite" && estaEmSeance) {
+      this.encaminharMensagemSeance(remetenteId, texto, jogador);
+      return;
+    }
+
+    // Se for um Medium vivo falando com os mortos
+    if (
+      this.fase === "noite" &&
+      jogador.papel.nome === "Medium" &&
+      jogador.status === "vivo"
+    ) {
+      this.encaminharMensagemChatMortos(remetenteId, texto, jogador);
+      return;
+    }
+
+    // Se for um jogador morto falando
+    if (jogador.status === "morto") {
+      this.encaminharMensagemChatMortos(remetenteId, texto, jogador);
+      return;
+    }
+  }
+
   processarVotos() {
     if (this.votos.size === 0) {
       this.notifyObservers("votacao_sem_votos", {});
@@ -546,6 +658,23 @@ class Game {
       });
     } else {
       this.notifyObservers("prisao_falhou", { jogadorId: jailorId });
+    }
+  }
+
+  registrarSeance(mediumId, alvoNomeFicticio) {
+    if (this.fase !== "discussao" && this.fase !== "votacao") return;
+
+    const medium = this.jogadores.find((j) => j.jogador.id === medium);
+    const alvo = this.jogadoresVivos.find(
+      (j) => j.jogador.nomeFicticio === alvoNomeFicticio
+    );
+
+    if (medium && alvo && !this.mediumQueUsaramSeance.has(mediumId)) {
+      this.seanceAlvos.set(mediumId, alvo.jogador.id);
+      this.notifyObservers("seance_registrada", {
+        mediumId,
+        alvoNome: alvo.jogador.nomeFicticio,
+      });
     }
   }
 

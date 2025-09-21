@@ -75,6 +75,26 @@ bot.onText(/\/jail (.+)/, (msg, match) => {
   game.registrarPrisao(atorId, alvoNome);
 });
 
+bot.onText(/\/seance (.+)/, (msg, match) => {
+  const atorId = msg.from.id;
+  const alvoNome = match[1];
+
+  const groupId = playerGames.get(atorId);
+  if (!groupId || !games.has(groupId)) return;
+
+  const game = games.get(groupId);
+  // A escolha da séance é feita de dia
+  if (game.fase === "noite") {
+    bot.sendMessage(
+      atorId,
+      "Você só pode escolher um alvo para sua séance durante o dia."
+    );
+    return;
+  }
+
+  game.registrarSeance(atorId, alvoNome);
+});
+
 bot.onText(/\/start (.+)/, (msg, match) => {
   const chatId = msg.chat.id;
   const link = match[1];
@@ -145,7 +165,7 @@ bot.on("message", (msg) => {
     const groupId = playerGames.get(remetenteId);
     const game = games.get(groupId);
     if (game) {
-      game.encaminharMensagemPrisao(remetenteId, msg.text);
+      game.processarMensagemPrivada(remetenteId, msg.text);
     }
   }
 });

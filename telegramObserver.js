@@ -149,6 +149,19 @@ class TelegramBotObserver {
             });
           });
         }
+
+        jogo.jogadores.forEach((p) => {
+          if (
+            p.status === "morto" &&
+            p.papel.nome === "Medium" &&
+            !jogo.mediumsQueUsaramSeance.has(p.jogador.id)
+          ) {
+            this.bot.sendMessage(
+              p.jogador.id,
+              "Você está morto, mas tem uma última chance de falar com os vivos. Use /seance [nome] durante o dia para escolher um alvo para contatar esta noite."
+            );
+          }
+        });
         break;
 
       case "votacao_iniciou":
@@ -390,6 +403,37 @@ class TelegramBotObserver {
           `*REVELAÇÃO DE CARGO!*\n\n` +
             `*${dados.mayor.jogador.nomeFicticio}* revelou-se como o *Mayor*!\n\n` +
             `Seus votos agora contam como 3.`,
+          { parse_mode: "Markdown" }
+        );
+        break;
+
+      case "seance_registrada":
+        this.bot.sendMessage(
+          dados.mediumId,
+          `Você escolheu fazer um contato espiritual com *${dados.alvoNome}*. Você falará com ele(a) esta noite.`,
+          { parse_mode: "Markdown" }
+        );
+        break;
+
+      case "seance_iniciada":
+        this.bot.sendMessage(
+          dados.alvoId,
+          "Um Medium está tentando falar com você do além... Você pode responder diretamente nesta conversa."
+        );
+        break;
+
+      case "mensagem_chat_mortos":
+        this.bot.sendMessage(
+          dados.destinatarioId,
+          `👻 *${dados.nomeRemetente}:* ${dados.texto}`,
+          { parse_mode: "Markdown" }
+        );
+        break;
+
+      case "mensagem_seance":
+        this.bot.sendMessage(
+          dados.destinatarioId,
+          `🗣️ *${dados.nomeRemetente}:* ${dados.texto}`,
           { parse_mode: "Markdown" }
         );
         break;
