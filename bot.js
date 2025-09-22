@@ -168,6 +168,7 @@ bot.on("callback_query", (callbackQuery) => {
   const data = callbackQuery.data;
   const atorId = callbackQuery.from.id;
 
+  // Lógica para votar e julgar
   if (data.startsWith("votar_") || data.startsWith("julgar_")) {
     const groupId = msg.chat.id;
     if (!games.has(groupId)) return;
@@ -190,6 +191,22 @@ bot.on("callback_query", (callbackQuery) => {
       });
     }
   } else if (data.startsWith("habil_")) {
+    if (data === "habil_alerta") {
+      const groupId = playerGames.get(atorId);
+      if (!groupId || !games.has(groupId)) return;
+      const game = games.get(groupId);
+
+      game.registrarAlerta(atorId);
+
+      bot.editMessageText(`Você decidiu ficar em alerta.`, {
+        chat_id: msg.chat.id,
+        message_id: msg.message_id,
+      });
+      bot.answerCallbackQuery(callbackQuery.id);
+      return; // Encerra aqui para não processar o código abaixo
+    }
+
+    // Lógica para habilidades com alvo
     const alvoNome = data.substring(6);
     const groupId = playerGames.get(atorId);
     if (!groupId || !games.has(groupId)) {
@@ -206,9 +223,7 @@ bot.on("callback_query", (callbackQuery) => {
       parse_mode: "Markdown",
     });
     bot.answerCallbackQuery(callbackQuery.id);
-  }
-
-  if (data.startsWith("jail_") || data.startsWith("seance_")) {
+  } else if (data.startsWith("jail_") || data.startsWith("seance_")) {
     const groupId = playerGames.get(atorId);
     if (!groupId || !games.has(groupId)) return;
     const game = games.get(groupId);

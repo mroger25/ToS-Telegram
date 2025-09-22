@@ -288,6 +288,7 @@ class TelegramBotObserver {
         break;
 
       case "noite_iniciou":
+        // Mensagem para o grupo
         this.bot.sendMessage(
           this.chatId,
           `O sol se põe.\n\n` +
@@ -299,7 +300,31 @@ class TelegramBotObserver {
 
         // Enviar mensagens privadas para papéis com ações
         dados.jogadoresVivos.forEach((jogadorInfo) => {
-          if (jogadorInfo.papel.temAcaoNoturna) {
+          // Lógica especial para o Veteran
+          if (
+            jogadorInfo.papel.nome === "Veteran" &&
+            jogadorInfo.alertsRemaining > 0
+          ) {
+            this.bot.sendMessage(
+              jogadorInfo.jogador.id,
+              `Você tem ${jogadorInfo.alertsRemaining} alertas restantes. Deseja ficar em alerta esta noite?`,
+              {
+                reply_markup: {
+                  inline_keyboard: [
+                    [
+                      {
+                        text: "Sim, ficar em alerta",
+                        callback_data: `habil_alerta`,
+                      },
+                    ],
+                  ],
+                },
+              }
+            );
+          }
+
+          // Lógica para os outros papéis
+          else if (jogadorInfo.papel.temAcaoNoturna) {
             let alvos = dados.jogadoresVivos
               .filter((alvo) => alvo.jogador.id !== jogadorInfo.jogador.id)
               .map((alvo) => [
@@ -330,6 +355,13 @@ class TelegramBotObserver {
             }
           }
         });
+        break;
+
+      case "alerta_ativado":
+        this.bot.sendMessage(
+          dados.veteranId,
+          `Você está em alerta! Você tem ${dados.remaining} alertas restantes.`
+        );
         break;
 
       case "acao_registrada":

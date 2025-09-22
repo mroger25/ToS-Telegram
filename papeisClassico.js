@@ -104,9 +104,11 @@ const PAPEIS_DETALHES = {
   },
   Veteran: {
     alignment: "Town Killing",
+    unique: true,
     priority: 1, // Prioridade alta para ficar em alerta
     goal: "Lynch every criminal and evildoer.",
     temAcaoNoturna: true,
+    alertsRemaining: 3,
   },
   Mayor: {
     alignment: "Town Support",

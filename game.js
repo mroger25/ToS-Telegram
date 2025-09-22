@@ -85,6 +85,7 @@ class Game {
     this.jailorDecisao = null;
     this.seanceAlvos = new Map();
     this.mediumQueUsaramSeance = new Set();
+    this.veteransOnAlert = new Set();
   }
 
   addPlayer(jogador) {
@@ -362,6 +363,13 @@ class Game {
 
     // Primeira passagem
     acoesOrdenadas.forEach(({ ator, alvo }) => {
+      this.veteransOnAlert.forEach((veteranId) => {
+        if (bloqueios.has(veteranId)) {
+          bloqueios.delete(veteranId);
+        }
+        curas.set(veteranId, "alert");
+      });
+
       // if (ator.papel.nome !== "Lookout") {
       registrarVisita(ator, alvo);
       // }
@@ -420,6 +428,19 @@ class Game {
           });
         }
       }
+    });
+
+    this.veteransOnAlert.forEach((veteranId) => {
+      const veteran = this.jogadores.find((j) => j.jogador.id === veteranId);
+      const visitantes = visitasNoturnas.get(veteranId) || [];
+
+      visitantes.forEach((nomeVisitante) => {
+        mortes.push(nomeVisitante);
+        resultadosPrivados.push({
+          jogadorId: veteranId,
+          mensagem: `Você atirou em alguém que te visitou!`,
+        });
+      });
     });
 
     // Segunda passagem
@@ -658,6 +679,21 @@ class Game {
     }
   }
 
+  registrarAlerta(veteranId) {
+    if (this.fase !== "noite") return;
+    const veteran = this.jogadoresVivos.find(
+      (j) => j.jogador.id === veteranId && j.papel.nome === "Veteran"
+    );
+    if (veteran && veteran.alertsRemaining > 0) {
+      this.veteransOnAlert.add(veteran.jogador.id);
+      veteran.alertsRemaining--;
+      this.notifyObservers("alerta_ativado", {
+        veteranId,
+        remaining: veteran.alertsRemaining,
+      });
+    }
+  }
+
   registrarExecucao(jailorId) {
     if (this.fase !== "noite" || !this.prisioneiro) return;
 
@@ -783,6 +819,7 @@ class Game {
         status: "vivo",
         alvoExecutioner: null,
         isMayorRevealed: false,
+        alertsRemaining: PAPEIS_DETALHES[nomePapel]?.alertsRemaining,
       });
     });
 
