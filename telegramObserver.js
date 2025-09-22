@@ -437,6 +437,55 @@ class TelegramBotObserver {
           { parse_mode: "Markdown" }
         );
         break;
+
+      case "exibir_alvos_prisao":
+        const tecladoPrisao = dados.alvos.map((alvo) => [
+          {
+            text: alvo.jogador.nomeFicticio,
+            callback_data: `jail_${alvo.jogador.nomeFicticio}`,
+          },
+        ]);
+
+        if (tecladoPrisao.length > 0) {
+          this.bot.sendMessage(
+            dados.jailorId,
+            "Quem você deseja prender esta noite?",
+            {
+              reply_markup: {
+                inline_keyboard: tecladoPrisao,
+              },
+            }
+          );
+        } else {
+          this.bot.sendMessage(dados.jailorId, "Não há ninguém para prender.");
+        }
+        break;
+
+      case "exibir_alvos_seance":
+        const tecladoSeance = dados.alvos.map((alvo) => [
+          {
+            text: alvo.jogador.nomeFicticio,
+            callback_data: `seance_${alvo.jogador.nomeFicticio}`,
+          },
+        ]);
+
+        if (tecladoSeance.length > 0) {
+          this.bot.sendMessage(
+            dados.mediumId,
+            "Com quem você deseja falar do além?",
+            {
+              reply_markup: {
+                inline_keyboard: tecladoSeance,
+              },
+            }
+          );
+        } else {
+          this.bot.sendMessage(
+            dados.mediumId,
+            "Não há ninguém vivo para contatar."
+          );
+        }
+        break;
     }
   }
 }

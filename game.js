@@ -264,6 +264,35 @@ class Game {
     setTimeout(() => this.iniciarDia(), 60000);
   }
 
+  iniciarPrisao(jailorId) {
+    if (this.fase !== "discussao") return;
+    const jailor = this.jogadoresVivos.find(
+      (j) => j.jogador.id === jailorId && j.papel.nome === "Jailor"
+    );
+    if (jailor) {
+      const alvos = this.jogadoresVivos.filter(
+        (j) => j.jogador.id !== jailorId
+      );
+      this.notifyObservers("exibir_alvos_prisao", { jailorId, alvos });
+    }
+  }
+
+  iniciarSeance(mediumId) {
+    if (this.fase === "noite") return;
+    const medium = this.jogadores.find(
+      (j) =>
+        j.jogador.id === mediumId &&
+        j.papel.nome === "Medium" &&
+        j.status === "morto"
+    );
+    if (medium && !this.mediumQueUsaramSeance.has(mediumId)) {
+      this.notifyObservers("exibir_alvos_seance", {
+        mediumId,
+        alvos: this.jogadoresVivos,
+      });
+    }
+  }
+
   iniciarUltimasPalavras() {
     this.fase = "ultimas_palavras";
     this.notifyObservers("ultimas_palavras_iniciou", {

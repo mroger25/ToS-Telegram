@@ -56,43 +56,36 @@ bot.onText(/\/execute/, (msg) => {
   game.registrarExecucao(atorId);
 });
 
-bot.onText(/\/jail (.+)/, (msg, match) => {
+bot.onText(/\/jail/, (msg) => {
   const atorId = msg.from.id;
-  const alvoNome = match[1];
-
   const groupId = playerGames.get(atorId);
+
   if (!groupId || !games.has(groupId)) {
     bot.sendMessage(atorId, "Você não está em um jogo ativo.");
     return;
   }
 
   const game = games.get(groupId);
-  if (game.fase !== "discussao") {
+  if (game.fase === "noite") {
     bot.sendMessage(atorId, "Você só pode prender alguém durante o dia.");
     return;
   }
 
-  game.registrarPrisao(atorId, alvoNome);
+  game.iniciarPrisao(atorId);
 });
 
-bot.onText(/\/seance (.+)/, (msg, match) => {
+bot.onText(/\/seance/, (msg) => {
   const atorId = msg.from.id;
-  const alvoNome = match[1];
-
   const groupId = playerGames.get(atorId);
   if (!groupId || !games.has(groupId)) return;
 
   const game = games.get(groupId);
-  // A escolha da séance é feita de dia
   if (game.fase === "noite") {
-    bot.sendMessage(
-      atorId,
-      "Você só pode escolher um alvo para sua séance durante o dia."
-    );
+    bot.sendMessage(atorId, "Você só pode escolher um alvo durante o dia.");
     return;
   }
 
-  game.registrarSeance(atorId, alvoNome);
+  game.iniciarSeance(atorId);
 });
 
 bot.onText(/\/start (.+)/, (msg, match) => {
@@ -208,6 +201,29 @@ bot.on("callback_query", (callbackQuery) => {
     const game = games.get(groupId);
     game.registrarAcaoNoturna(atorId, alvoNome);
     bot.editMessageText(`Você escolheu usar sua habilidade em *${alvoNome}*.`, {
+      chat_id: msg.chat.id,
+      message_id: msg.message_id,
+      parse_mode: "Markdown",
+    });
+    bot.answerCallbackQuery(callbackQuery.id);
+  }
+
+  if (data.startsWith("jail_") || data.startsWith("seance_")) {
+    const groupId = playerGames.get(atorId);
+    if (!groupId || !games.has(groupId)) return;
+    const game = games.get(groupId);
+
+    const tipoAcao = data.split("_")[0];
+    const alvoNome = data.substring(tipoAcao.length + 1);
+
+    if (tipoAcao === "jail") {
+      game.registrarPrisao(atorId, alvoNome);
+    } else if (tipoAcao === "seance") {
+      game.registrarSeance(atorId, alvoNome);
+    }
+
+    // Edita a mensagem para dar feedback e remover os botões
+    bot.editMessageText(`Você selecionou *${alvoNome}*.`, {
       chat_id: msg.chat.id,
       message_id: msg.message_id,
       parse_mode: "Markdown",
