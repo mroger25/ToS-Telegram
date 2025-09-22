@@ -101,6 +101,7 @@ const PAPEIS_DETALHES = {
     priority: 5,
     goal: "Lynch every criminal and evildoer.",
     temAcaoNoturna: true,
+    bulletsRemaining: 3,
   },
   Veteran: {
     alignment: "Town Killing",

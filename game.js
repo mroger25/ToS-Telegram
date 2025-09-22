@@ -86,6 +86,7 @@ class Game {
     this.seanceAlvos = new Map();
     this.mediumQueUsaramSeance = new Set();
     this.veteransOnAlert = new Set();
+    this.vigilantesComCulpa = new Set();
   }
 
   addPlayer(jogador) {
@@ -325,6 +326,21 @@ class Game {
     let frames = new Set();
     let visitasNoturnas = new Map();
 
+    // Lógica de suicídio do Vigilante
+    this.vigilantesComCulpa.forEach((vigilanteId) => {
+      const vigilante = this.jogadores.find(
+        (j) => j.jogador.id === vigilanteId
+      );
+      if (vigilante && vigilante.status === "vivo") {
+        mortes.push(vigilante.jogador.nomeFicticio);
+        resultadosPrivados.push({
+          jogadorId: vigilanteId,
+          mensagem: "Você sucumbiu à culpa por ter matado um inocente.",
+        });
+      }
+    });
+    this.vigilantesComCulpa.clear();
+
     const registrarVisita = (visitante, visitado) => {
       if (!visitado) return;
       if (!visitasNoturnas.has(visitado.jogador.id)) {
@@ -501,6 +517,39 @@ class Game {
             jogadorId: ator.jogador.id,
             mensagem: mensagemLookout,
           });
+          break;
+        case "Vigilante":
+          const isAlvoPreso =
+            this.prisioneiro && this.prisioneiro.jogador.id === alvo.jogador.id;
+          if (isAlvoPreso) {
+            resultadosPrivados.push({
+              jogadorId: ator.jogador.id,
+              mensagem: "Seu alvo estava na prisão.",
+            });
+            resultadosPrivados.push({
+              jogadorId: alvo.jogador.id,
+              mensagem: "Alguém tentou te atacar, enquanto estava na prisão.",
+            });
+            return;
+          }
+
+          ator.bulletsRemaining--;
+
+          if (curas.has(alvo.jogador.id)) {
+            const doctorId = curas.get(alvo.jogador.id);
+            resultadosPrivados.push({
+              jogadorId: doctorId,
+              mensagem:
+                "Seu alvo foi atacado, mas você chegou a tempo de salvá-lo!",
+            });
+          } else {
+            // Se o alvo não foi curado, ele morre
+            mortes.push(alvo.jogador.nomeFicticio);
+            // Verifica se o alvo era da cidade para aplicar a culpa
+            if (alvo.papel.alignment.startsWith("Town")) {
+              this.vigilantesComCulpa.add(ator.jogador.id);
+            }
+          }
           break;
         case "Mafioso":
         case "Godfather":
@@ -820,6 +869,7 @@ class Game {
         alvoExecutioner: null,
         isMayorRevealed: false,
         alertsRemaining: PAPEIS_DETALHES[nomePapel]?.alertsRemaining,
+        bulletsRemaining: PAPEIS_DETALHES[nomePapel]?.bulletsRemaining,
       });
     });
 

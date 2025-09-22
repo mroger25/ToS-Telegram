@@ -323,6 +323,37 @@ class TelegramBotObserver {
             );
           }
 
+          // Lógica especial para o Vigilante
+          else if (jogadorInfo.papel.nome === "Vigilante") {
+            if (jogo.dia === 1) {
+              this.bot.sendMessage(
+                jogadorInfo.jogador.id,
+                "Você recarrega sua arma, mas decide" +
+                  " esperar um dia antes de usá-la."
+              );
+            } else if (jogadorInfo.bulletsRemaining > 0) {
+              const alvos = dados.jogadoresVivos
+                .filter((alvo) => alvo.jogador.id !== jogadorInfo.jogador.id)
+                .map((alvo) => [
+                  {
+                    text: alvo.jogador.nomeFicticio,
+                    callback_data: `habil_${alvo.jogador.nomeFicticio}`,
+                  },
+                ]);
+              this.bot.sendMessage(
+                jogadorInfo.jogador.id,
+                `Você tem ${jogadorInfo.bulletsRemaining} bala(s) restante(s).\n\n` +
+                  `Escolha um alvo, se quiser atirar:`,
+                { reply_markup: { inline_keyboard: alvos } }
+              );
+            } else {
+              this.bot.sendMessage(
+                jogadorInfo.jogador.id,
+                "Você não tem mais balas."
+              );
+            }
+          }
+
           // Lógica para os outros papéis
           else if (jogadorInfo.papel.temAcaoNoturna) {
             let alvos = dados.jogadoresVivos
