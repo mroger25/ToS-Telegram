@@ -87,6 +87,8 @@ class Game {
     this.mediumQueUsaramSeance = new Set();
     this.veteransOnAlert = new Set();
     this.vigilantesComCulpa = new Set();
+    this.jesterLinchadoInfo = null;
+    this.vencedoresIndividuais = [];
   }
 
   addPlayer(jogador) {
@@ -195,6 +197,31 @@ class Game {
 
   executarLinchamento() {
     const jogadorMorto = this.jogadorEmJulgamento;
+
+    // Lógica de vitória do Jester
+    if (jogadorMorto.papel.nome === "Jester") {
+      this.vencedoresIndividuais.push(jogadorMorto.jogador.nomeFicticio);
+      const eleitoresCulpados = [];
+      for (const [votadorId, veredito] of this.votosJulgamento.entries()) {
+        // Adiciona quem votou 'culpado' ou se absteve
+        if (veredito !== "inocente") {
+          const eleitor = this.jogadoresVivos.find(
+            (j) => j.jogador.id === votadorId
+          );
+          if (eleitor) {
+            eleitoresCulpados.push(eleitor);
+          }
+        }
+      }
+
+      this.jesterLinchadoInfo = {
+        jesterId: jogadorMorto.jogador.id,
+        eleitores: eleitoresCulpados,
+      };
+
+      this.notifyObservers("jester_linchado", this.jesterLinchadoInfo);
+    }
+
     // Remove o jogador da lista de vivos
     this.jogadoresVivos = this.jogadoresVivos.filter(
       (j) => j.jogador.id !== jogadorMorto.jogador.id
@@ -325,6 +352,18 @@ class Game {
     let bloqueios = new Set();
     let frames = new Set();
     let visitasNoturnas = new Map();
+
+    if (this.jesterLinchadoInfo && this.jesterLinchadoInfo.alvoId) {
+      const alvo = this.jogadores.find(
+        (j) => j.jogador.id === this.jesterLinchadoInfo.alvoId
+      );
+      if (alvo) {
+        mortes.push(alvo.jogador.nomeFicticio);
+        alvo.causaDaMorte = "assombrado por um Jester vingativo";
+      }
+      // A assombração só ocorre uma vez
+      this.jesterLinchadoInfo = null;
+    }
 
     // Lógica de suicídio do Vigilante
     this.vigilantesComCulpa.forEach((vigilanteId) => {
@@ -756,6 +795,24 @@ class Game {
     }
   }
 
+  registrarHaunt(jesterId, alvoNomeFicticio) {
+    if (
+      this.jesterLinchadoInfo &&
+      this.jesterLinchadoInfo.jesterId === jesterId
+    ) {
+      const alvo = this.jesterLinchadoInfo.eleitores.find(
+        (j) => j.jogador.nomeFicticio === alvoNomeFicticio
+      );
+      if (alvo) {
+        this.jesterLinchadoInfo.alvoId = alvo.jogador.id;
+        this.notifyObservers("haunt_registrado", {
+          jesterId,
+          alvoNome: alvo.jogador.nomeFicticio,
+        });
+      }
+    }
+  }
+
   registrarPrisao(jailorId, alvoNomeFicticio) {
     if (this.fase !== "discussao") return;
     const jailor = this.jogadoresVivos.find(
@@ -912,6 +969,12 @@ class Game {
   }
 
   verificarFimDeJogo() {
+    // Impede o fim por impasse se o Jester acabou de ser linchado
+    if (this.jesterLinchadoInfo) {
+      return false;
+    }
+
+    // Lógica de verificação de fim de jogo
     const vivos = this.jogadoresVivos;
     if (vivos.length === 0) {
       this.estado = "finalizado";

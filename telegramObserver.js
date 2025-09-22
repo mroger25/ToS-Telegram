@@ -411,6 +411,43 @@ class TelegramBotObserver {
         );
         break;
 
+      case "jester_linchado":
+        this.bot.sendMessage(
+          this.chatId,
+          `🤣 O Jester se vingará do túmulo! 🤣`
+        );
+
+        const tecladoHaunt = dados.eleitores.map((alvo) => [
+          {
+            text: alvo.jogador.nomeFicticio,
+            callback_data: `haunt_${alvo.jogador.nomeFicticio}`,
+          },
+        ]);
+
+        if (tecladoHaunt.length > 0) {
+          this.bot.sendMessage(
+            dados.jesterId,
+            "Sua hora chegou! Escolha um dos jogadores que " +
+              "votaram contra você para levar junto para o túmulo:",
+            { reply_markup: { inline_keyboard: tecladoHaunt } }
+          );
+        } else {
+          this.bot.sendMessage(
+            dados.jesterId,
+            "Parece que ninguém votou contra você. O " +
+              "destino escolherá uma vítima aleatória."
+          );
+        }
+        break;
+
+      case "haunt_registrado":
+        this.bot.sendMessage(
+          dados.jesterId,
+          `Sua escolha foi registrada. *${dados.alvoNome}* sentirá sua ira.`,
+          { parse_mode: "Markdown" }
+        );
+        break;
+
       case "prisao_sucesso":
         // Mensagem para o grupo
         // this.bot.sendMessage(

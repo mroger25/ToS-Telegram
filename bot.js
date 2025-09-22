@@ -168,7 +168,6 @@ bot.on("callback_query", (callbackQuery) => {
   const data = callbackQuery.data;
   const atorId = callbackQuery.from.id;
 
-  // Lógica para votar e julgar
   if (data.startsWith("votar_") || data.startsWith("julgar_")) {
     const groupId = msg.chat.id;
     if (!games.has(groupId)) return;
@@ -243,6 +242,23 @@ bot.on("callback_query", (callbackQuery) => {
       message_id: msg.message_id,
       parse_mode: "Markdown",
     });
+    bot.answerCallbackQuery(callbackQuery.id);
+  } else if (data.startsWith("haunt_")) {
+    const alvoNome = data.substring(6);
+    const groupId = playerGames.get(atorId);
+    if (!groupId || !games.has(groupId)) return;
+    const game = games.get(groupId);
+
+    game.registrarHaunt(atorId, alvoNome);
+
+    bot.editMessageText(
+      `Você escolheu assombrar *${alvoNome}*. Sua vingança será feita.`,
+      {
+        chat_id: msg.chat.id,
+        message_id: msg.message_id,
+        parse_mode: "Markdown",
+      }
+    );
     bot.answerCallbackQuery(callbackQuery.id);
   }
 });
